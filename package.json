@@ -1,0 +1,25 @@
+{
+  "name": "outlook-api-code",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/liqianluo/outlook-API-code.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/liqianluo/outlook-API-code/issues"
+  },
+  "homepage": "https://github.com/liqianluo/outlook-API-code#readme",
+  "description": "Outlook Graph API 验证码监听工具 - 前端输入邮箱后持续监听 Microsoft 一次性验证码",
+  "dependencies": {
+    "express": "^5.2.1",
+    "node-fetch": "^2.7.0"
+  }
+}

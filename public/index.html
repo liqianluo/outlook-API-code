@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>验证码监听 · Outlook API</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --card:      #1a1d27;
+      --border:    #2a2d3e;
+      --accent:    #4f8ef7;
+      --accent2:   #7c3aed;
+      --success:   #22c55e;
+      --warning:   #f59e0b;
+      --danger:    #ef4444;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --radius:    12px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 16px 80px;
+    }
+
+    /* ── 顶部标题 ── */
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    header p {
+      color: var(--muted);
+      margin-top: 8px;
+      font-size: 0.9rem;
+    }
+
+    /* ── 主卡片 ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px 32px;
+      width: 100%;
+      max-width: 520px;
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 16px;
+    }
+
+    /* ── 表单 ── */
+    .field { margin-bottom: 16px; }
+    label {
+      display: block;
+      font-size: 0.85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    input[type="email"], input[type="text"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 0.95rem;
+      padding: 10px 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus { border-color: var(--accent); }
+    input::placeholder { color: var(--muted); }
+
+    /* ── 按钮 ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      padding: 10px 20px;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      width: 100%;
+      justify-content: center;
+      padding: 12px;
+    }
+    .btn-stop {
+      background: rgba(239,68,68,0.15);
+      color: var(--danger);
+      border: 1px solid rgba(239,68,68,0.3);
+      width: 100%;
+      justify-content: center;
+      padding: 12px;
+    }
+
+    /* ── 状态区 ── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      margin-top: 16px;
+      border: 1px solid transparent;
+    }
+    .status-idle    { background: rgba(100,116,139,0.1); border-color: var(--border); color: var(--muted); }
+    .status-listen  { background: rgba(79,142,247,0.1);  border-color: rgba(79,142,247,0.3); color: var(--accent); }
+    .status-success { background: rgba(34,197,94,0.1);   border-color: rgba(34,197,94,0.3);  color: var(--success); }
+    .status-error   { background: rgba(239,68,68,0.1);   border-color: rgba(239,68,68,0.3);  color: var(--danger); }
+    .status-timeout { background: rgba(245,158,11,0.1);  border-color: rgba(245,158,11,0.3); color: var(--warning); }
+
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      background: currentColor;
+    }
+    .dot.pulse { animation: pulse 1.2s ease-in-out infinite; }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    /* ── 验证码展示 ── */
+    .code-display {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      padding: 28px 20px;
+      background: rgba(34,197,94,0.06);
+      border: 1px solid rgba(34,197,94,0.25);
+      border-radius: var(--radius);
+      margin-top: 16px;
+      text-align: center;
+    }
+    .code-display.show { display: flex; }
+    .code-label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 12px;
+    }
+    .code-value {
+      font-size: 3rem;
+      font-weight: 800;
+      letter-spacing: 0.25em;
+      color: var(--success);
+      font-variant-numeric: tabular-nums;
+      line-height: 1;
+    }
+    .code-meta {
+      font-size: 0.78rem;
+      color: var(--muted);
+      margin-top: 10px;
+    }
+    .btn-copy {
+      margin-top: 16px;
+      background: rgba(34,197,94,0.15);
+      color: var(--success);
+      border: 1px solid rgba(34,197,94,0.3);
+      border-radius: 6px;
+      padding: 7px 18px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .btn-copy:hover { opacity: 0.8; }
+
+    /* ── 进度条 ── */
+    .progress-wrap {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      margin-top: 14px;
+      overflow: hidden;
+      display: none;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+      transition: width 3s linear;
+    }
+
+    /* ── 活跃监听列表 ── */
+    .sessions-card { max-width: 520px; width: 100%; }
+    .session-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      font-size: 0.85rem;
+      gap: 10px;
+    }
+    .session-item .s-email { color: var(--text); font-weight: 500; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .session-item .s-remaining { color: var(--muted); font-size: 0.78rem; flex-shrink: 0; }
+    .session-item .s-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex-shrink: 0; animation: pulse 1.2s ease-in-out infinite; }
+    .empty-tip { color: var(--muted); font-size: 0.85rem; text-align: center; padding: 12px 0; }
+
+    /* ── 历史记录 ── */
+    .history-list { max-height: 260px; overflow-y: auto; }
+    .history-list::-webkit-scrollbar { width: 4px; }
+    .history-list::-webkit-scrollbar-track { background: transparent; }
+    .history-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .hist-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 12px;
+      border-radius: 8px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      margin-bottom: 6px;
+      font-size: 0.83rem;
+    }
+    .hist-code { font-weight: 700; color: var(--success); letter-spacing: 0.15em; font-size: 1rem; min-width: 70px; }
+    .hist-email { color: var(--muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hist-time  { color: var(--muted); font-size: 0.75rem; flex-shrink: 0; }
+    .hist-copy  { background: none; border: none; color: var(--muted); cursor: pointer; padding: 2px 6px; border-radius: 4px; font-size: 0.75rem; }
+    .hist-copy:hover { color: var(--text); background: var(--border); }
+
+    @media (max-width: 560px) {
+      .card { padding: 20px 18px; }
+      .code-value { font-size: 2.4rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>验证码监听</h1>
+  <p>输入账号邮箱与辅助邮箱，自动监听 Microsoft 一次性验证码</p>
+</header>
+
+<!-- 主操作卡片 -->
+<div class="card">
+  <div class="card-title">新建监听</div>
+
+  <div class="field">
+    <label for="inp-email">账号邮箱（Microsoft 账号）</label>
+    <input id="inp-email" type="email" placeholder="example@hotmail.com" autocomplete="off" />
+  </div>
+  <div class="field">
+    <label for="inp-helper">辅助邮箱（验证码发送到此邮箱）</label>
+    <input id="inp-helper" type="email" placeholder="28@itai.im" autocomplete="off" />
+  </div>
+
+  <button id="btn-start" class="btn btn-primary" onclick="startListen()">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+    开始监听
+  </button>
+  <button id="btn-stop" class="btn btn-stop" style="display:none;margin-top:10px;" onclick="stopListen()">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+    停止监听
+  </button>
+
+  <!-- 进度条 -->
+  <div class="progress-wrap" id="progress-wrap">
+    <div class="progress-bar" id="progress-bar" style="width:100%"></div>
+  </div>
+
+  <!-- 状态栏 -->
+  <div class="status-bar status-idle" id="status-bar">
+    <div class="dot" id="status-dot"></div>
+    <span id="status-text">等待开始监听</span>
+  </div>
+
+  <!-- 验证码展示 -->
+  <div class="code-display" id="code-display">
+    <div class="code-label">验证码</div>
+    <div class="code-value" id="code-value">------</div>
+    <div class="code-meta" id="code-meta"></div>
+    <button class="btn-copy" onclick="copyCode()">复制验证码</button>
+  </div>
+</div>
+
+<!-- 活跃监听列表 -->
+<div class="card sessions-card">
+  <div class="card-title">当前活跃监听 <span id="session-count" style="color:var(--accent)">0</span></div>
+  <div id="session-list"><div class="empty-tip">暂无活跃监听</div></div>
+</div>
+
+<!-- 历史记录 -->
+<div class="card sessions-card">
+  <div class="card-title">
+    历史记录
+    <button onclick="clearHistory()" style="float:right;background:none;border:none;color:var(--muted);cursor:pointer;font-size:0.75rem;">清空</button>
+  </div>
+  <div class="history-list" id="history-list"><div class="empty-tip">暂无记录</div></div>
+</div>
+
+<script>
+// ============================================================
+// 状态管理
+// ============================================================
+let currentEs    = null;   // 当前页面的 EventSource
+let currentEmail = '';
+let currentHelper= '';
+let currentCode  = '';
+
+// 活跃监听 Map：key = `${email}|${helper}`, value = { email, helper, remaining, startTs }
+const activeSessions = new Map();
+
+// 历史记录数组
+const history = [];
+
+// ============================================================
+// 工具函数
+// ============================================================
+function nowIso() {
+  return new Date().toISOString();
+}
+
+function fmtTime(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+function setStatus(type, text) {
+  const bar  = document.getElementById('status-bar');
+  const dot  = document.getElementById('status-dot');
+  const span = document.getElementById('status-text');
+  bar.className  = `status-bar status-${type}`;
+  dot.className  = `dot${type === 'listen' ? ' pulse' : ''}`;
+  span.textContent = text;
+}
+
+function showCode(code, email, helper, ts) {
+  const disp = document.getElementById('code-display');
+  disp.classList.add('show');
+  document.getElementById('code-value').textContent = code;
+  document.getElementById('code-meta').textContent  = `${helper}  ·  ${fmtTime(ts)}`;
+  currentCode = code;
+}
+
+function hideCode() {
+  document.getElementById('code-display').classList.remove('show');
+  currentCode = '';
+}
+
+function copyCode() {
+  if (!currentCode) return;
+  navigator.clipboard.writeText(currentCode).then(() => {
+    const btn = document.querySelector('.btn-copy');
+    btn.textContent = '已复制 ✓';
+    setTimeout(() => { btn.textContent = '复制验证码'; }, 2000);
+  });
+}
+
+// ============================================================
+// 活跃监听列表渲染
+// ============================================================
+function renderSessions() {
+  const list  = document.getElementById('session-list');
+  const count = document.getElementById('session-count');
+  count.textContent = activeSessions.size;
+  if (activeSessions.size === 0) {
+    list.innerHTML = '<div class="empty-tip">暂无活跃监听</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (const [key, s] of activeSessions) {
+    const div = document.createElement('div');
+    div.className = 'session-item';
+    div.innerHTML = `
+      <div class="s-dot"></div>
+      <div class="s-email" title="${s.helper}">${s.helper}</div>
+      <div class="s-remaining">剩余 ${s.remaining ?? '—'}s</div>`;
+    list.appendChild(div);
+  }
+}
+
+// ============================================================
+// 历史记录渲染
+// ============================================================
+function renderHistory() {
+  const list = document.getElementById('history-list');
+  if (history.length === 0) {
+    list.innerHTML = '<div class="empty-tip">暂无记录</div>';
+    return;
+  }
+  list.innerHTML = '';
+  for (let i = history.length - 1; i >= 0; i--) {
+    const h   = history[i];
+    const div = document.createElement('div');
+    div.className = 'hist-item';
+    div.innerHTML = `
+      <span class="hist-code">${h.code}</span>
+      <span class="hist-email" title="${h.helper}">${h.helper}</span>
+      <span class="hist-time">${fmtTime(h.ts)}</span>
+      <button class="hist-copy" onclick="navigator.clipboard.writeText('${h.code}')">复制</button>`;
+    list.appendChild(div);
+  }
+}
+
+function clearHistory() {
+  history.length = 0;
+  renderHistory();
+}
+
+// ============================================================
+// 开始监听
+// ============================================================
+function startListen() {
+  const email  = document.getElementById('inp-email').value.trim();
+  const helper = document.getElementById('inp-helper').value.trim();
+
+  if (!email || !email.includes('@')) {
+    alert('请输入有效的账号邮箱');
+    return;
+  }
+  if (!helper || !helper.includes('@')) {
+    alert('请输入有效的辅助邮箱');
+    return;
+  }
+
+  // 如果已有监听，先关闭
+  if (currentEs) {
+    currentEs.close();
+    currentEs = null;
+  }
+
+  currentEmail  = email;
+  currentHelper = helper;
+  hideCode();
+
+  const since = nowIso();
+  const key   = `${email}|${helper}`;
+
+  // 注册到活跃列表
+  activeSessions.set(key, { email, helper, remaining: 300, startTs: since });
+  renderSessions();
+
+  // 更新 UI
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').style.display = 'block';
+  document.getElementById('progress-wrap').classList.add('show');
+  document.getElementById('progress-bar').style.width = '100%';
+  // 触发进度条动画（300s 内缩到 0）
+  requestAnimationFrame(() => {
+    document.getElementById('progress-bar').style.transition = 'width 300s linear';
+    document.getElementById('progress-bar').style.width = '0%';
+  });
+
+  setStatus('listen', `正在监听 ${helper} 的验证码...`);
+
+  // 建立 SSE 连接
+  const url = `/api/listen?email=${encodeURIComponent(email)}&helper=${encodeURIComponent(helper)}&since=${encodeURIComponent(since)}`;
+  const es  = new EventSource(url);
+  currentEs = es;
+
+  es.addEventListener('connected', (e) => {
+    const d = JSON.parse(e.data);
+    setStatus('listen', d.message);
+  });
+
+  es.addEventListener('ping', (e) => {
+    const d = JSON.parse(e.data);
+    // 更新剩余时间
+    if (activeSessions.has(key)) {
+      activeSessions.get(key).remaining = d.remaining;
+      renderSessions();
+    }
+    setStatus('listen', `正在监听 ${helper}... 剩余 ${d.remaining}s`);
+  });
+
+  es.addEventListener('code', (e) => {
+    const d = JSON.parse(e.data);
+    setStatus('success', `验证码已获取：${d.code}`);
+    showCode(d.code, d.email, d.helper, d.ts);
+
+    // 加入历史
+    history.push({ code: d.code, email: d.email, helper: d.helper, ts: d.ts });
+    renderHistory();
+
+    // 从活跃列表移除
+    activeSessions.delete(key);
+    renderSessions();
+
+    resetForm();
+    es.close();
+    currentEs = null;
+  });
+
+  es.addEventListener('timeout', (e) => {
+    const d = JSON.parse(e.data);
+    setStatus('timeout', d.message);
+    activeSessions.delete(key);
+    renderSessions();
+    resetForm();
+    es.close();
+    currentEs = null;
+  });
+
+  es.addEventListener('error', (e) => {
+    // SSE 连接级别错误（非业务错误）
+    if (es.readyState === EventSource.CLOSED) {
+      setStatus('error', '连接已断开');
+      activeSessions.delete(key);
+      renderSessions();
+      resetForm();
+      currentEs = null;
+    }
+  });
+}
+
+// ============================================================
+// 停止监听
+// ============================================================
+function stopListen() {
+  if (currentEs) {
+    currentEs.close();
+    currentEs = null;
+  }
+  const key = `${currentEmail}|${currentHelper}`;
+  activeSessions.delete(key);
+  renderSessions();
+  setStatus('idle', '监听已手动停止');
+  resetForm();
+}
+
+function resetForm() {
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').style.display = 'none';
+  document.getElementById('progress-wrap').classList.remove('show');
+  document.getElementById('progress-bar').style.transition = 'none';
+  document.getElementById('progress-bar').style.width = '100%';
+}
+
+// ============================================================
+// 回车快捷键
+// ============================================================
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !document.getElementById('btn-start').disabled) {
+    startListen();
+  }
+});
+
+// 初始化渲染
+renderSessions();
+renderHistory();
+</script>
+</body>
+</html>
