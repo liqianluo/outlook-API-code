@@ -5,7 +5,7 @@ const fetch   = require('node-fetch');
 const path    = require('path');
 
 const app  = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 6327;
 
 // ============================================================
 // Graph API 配置（与 ms365-invite-tool 保持一致）
