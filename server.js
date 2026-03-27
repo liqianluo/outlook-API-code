@@ -77,12 +77,19 @@ async function fetchOtp(helperEmail, afterTs) {
   for (const msg of (data.value || [])) {
     const subject = msg.subject || '';
     const body    = (msg.body && msg.body.content) || '';
-    // 主题匹配
-    if (!subject.includes('一次性代码') && !subject.toLowerCase().includes('one-time code')) continue;
+    // 主题匹配（中文：一次性代码 / 英文：Your single-use code / one-time code）
+    const subjectLower = subject.toLowerCase();
+    const isChineseOtp = subject.includes('一次性代码');
+    const isEnglishOtp = subjectLower.includes('single-use code') || subjectLower.includes('one-time code');
+    if (!isChineseOtp && !isEnglishOtp) continue;
     // 正文精准匹配辅助邮箱
     if (!body.toLowerCase().includes(helperEmail.toLowerCase())) continue;
     // 提取 6-8 位数字验证码
-    const m = body.match(/\b(\d{6,8})\b/);
+    // 英文格式："Your single-use code is: 286421"
+    // 中文格式：正文中直接含数字
+    const mExplicit = body.match(/(?:single-use code is|one-time code is|验证码[为是：:]+)\s*[：:]?\s*(\d{6,8})/i);
+    const mFallback = body.match(/\b(\d{6,8})\b/);
+    const m = mExplicit || mFallback;
     if (m) return { code: m[1] };
   }
   return null;
