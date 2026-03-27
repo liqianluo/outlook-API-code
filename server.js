@@ -84,13 +84,19 @@ async function fetchOtp(helperEmail, afterTs) {
     if (!isChineseOtp && !isEnglishOtp) continue;
     // 正文精准匹配辅助邮箱
     if (!body.toLowerCase().includes(helperEmail.toLowerCase())) continue;
-    // 提取 6-8 位数字验证码
-    // 英文格式："Your single-use code is: 286421"
-    // 中文格式：正文中直接含数字
-    const mExplicit = body.match(/(?:single-use code is|one-time code is|验证码[为是：:]+)\s*[：:]?\s*(\d{6,8})/i);
-    const mFallback = body.match(/\b(\d{6,8})\b/);
-    const m = mExplicit || mFallback;
-    if (m) return { code: m[1] };
+    // 提取 6-8 位数字验证码，每种格式独立尝试，任意命中即返回
+    // 模式1：英文 "Your single-use code is: 286421"
+    const m1 = body.match(/single-use code is[\s：:]*?(\d{6,8})/i);
+    if (m1) return { code: m1[1] };
+    // 模式2：英文 "one-time code is: XXXXXX"
+    const m2 = body.match(/one-time code is[\s：:]*?(\d{6,8})/i);
+    if (m2) return { code: m2[1] };
+    // 模式3：中文 "验证码为/是/：XXXXXX"
+    const m3 = body.match(/验证码[为是\s]*[：:]*\s*(\d{6,8})/);
+    if (m3) return { code: m3[1] };
+    // 模式4：兜底，正文中任意 6-8 位独立数字
+    const m4 = body.match(/\b(\d{6,8})\b/);
+    if (m4) return { code: m4[1] };
   }
   return null;
 }
